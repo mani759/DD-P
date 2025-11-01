@@ -478,22 +478,21 @@
   </div>
 
   <!-- Firebase Scripts -->
- <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
-
+   <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database-compat.js"></script>
 
   <script>
     // ========== FIREBASE CONFIG - REPLACE WITH YOUR CONFIG ==========
     const firebaseConfig = {
-  apiKey: "AIzaSyBjhFMt9Re22zYgIBIifiHVfXzvPK3h2Sc",
-  authDomain: "admin-ddprovisons.firebaseapp.com",
-  databaseURL: "https://admin-ddprovisons-default-rtdb.firebaseio.com",
-  projectId: "admin-ddprovisons",
-  storageBucket: "admin-ddprovisons.firebasestorage.app",
-  messagingSenderId: "527916716799",
-  appId: "1:527916716799:web:84839ab3e0d738fcb4f2ca",
-  measurementId: "G-KJEH721HX6"
-};
+      apiKey: "AIzaSyBjhFMt9Re22zYgIBIifiHVfXzvPK3h2Sc",
+      authDomain: "admin-ddprovisons.firebaseapp.com",
+      databaseURL: "https://admin-ddprovisons-default-rtdb.firebaseio.com",
+      projectId: "admin-ddprovisons",
+      storageBucket: "admin-ddprovisons.firebasestorage.app",
+      messagingSenderId: "527916716799",
+      appId: "1:527916716799:web:84839ab3e0d738fcb4f2ca",
+      measurementId: "G-KJEH721HX6"
+    };
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
@@ -506,6 +505,32 @@
 
     // ========== LOAD DATA FROM FIREBASE ==========
     function loadData() {
+      db.ref('products').on('value', (snapshot) => {
+        products = [];
+        snapshot.forEach((childSnapshot) => {
+          products.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
+          });
+        });
+        updateDashboard();
+        renderProducts();
+      });
+
+      db.ref('offers').on('value', (snapshot) => {
+        offers = [];
+        snapshot.forEach((childSnapshot) => {
+          offers.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
+          });
+        });
+        updateDashboard();
+        renderOffers();
+      });
+    }
+
+       function loadData() {
       db.ref('products').on('value', (snapshot) => {
         products = [];
         snapshot.forEach((childSnapshot) => {
@@ -737,8 +762,15 @@
 
     document.getElementById('product-search').addEventListener('keyup', renderProducts);
 
+    // ...all your other JS functions remain unchanged (updateDashboard, openProductModal, saveProduct, etc.)
+
     // ========== INITIALIZE ==========
     loadData();
+
+    // Utility functions...
+    // (rest of your code unchanged)
   </script>
+</body>
+
 </body>
 </html>

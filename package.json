@@ -1,0 +1,9 @@
+
+{
+  "name": "dd-provisions",
+  "version": "1.0.0",
+  "description": "DD Provisions E-commerce Store",
+  "engines": {
+    "node": "18.x"
+  }
+}

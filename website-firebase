@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DD Provisions</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-text">
+      <h1>DD Provisions</h1>
+      <p>Fresh groceries delivered to your doorstep!</p>
+      <a href="#products" class="hero-cta">Shop Now</a>
+    </div>
+  </section>
+
+  <!-- Shopping Cart Icon (Fixed) -->
+  <div class="cart-icon-container">
+    <button id="cart-toggle" class="cart-toggle-btn">
+      <i class="ri-shopping-cart-2-line"></i>
+      <span class="cart-badge" id="cart-badge">0</span>
+    </button>
+  </div>
+
+  <!-- Shopping Cart Sidebar -->
+  <div class="cart-sidebar" id="cart-sidebar">
+    <div class="cart-header">
+      <h2>Shopping Cart</h2>
+      <button id="cart-close" class="cart-close-btn">
+        <i class="ri-close-line"></i>
+      </button>
+    </div>
+    
+    <div class="cart-items" id="cart-items">
+      <p class="empty-cart-message">Your cart is empty</p>
+    </div>
+
+    <div class="cart-footer">
+      <div class="cart-total">
+        <span>Total:</span>
+        <span id="cart-total-price">₦0</span>
+      </div>
+      <button id="checkout-btn" class="checkout-btn" disabled>
+        <i class="ri-whatsapp-line"></i> Checkout on WhatsApp
+      </button>
+      <button id="clear-cart-btn" class="clear-cart-btn">Clear Cart</button>
+    </div>
+  </div>
+
+  <!-- Cart Overlay -->
+  <div class="cart-overlay" id="cart-overlay"></div>
+
+  <!-- Categories Section -->
+  <section class="categories">
+    <h2>Shop by Category</h2>
+
+    <!-- 🔍 Search Bar -->
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="Search for a product..." />
+      <button id="clear-search" title="Clear search">&times;</button>
+    </div>
+
+    <!-- Category Buttons -->
+    <div class="category-buttons">
+      <button class="category-card active" data-filter="All">All</button>
+      <button class="category-card" data-filter="Offers">Offers</button>
+      <button class="category-card" data-filter="Flours & Atta">Flours & Atta</button>
+      <button class="category-card" data-filter="Masala & Spices">Masala & Spices</button>
+      <button class="category-card" data-filter="Pulses & Dals">Pulses & Dals</button>
+      <button class="category-card" data-filter="Oils & Ghee">Oils & Ghee</button>
+      <button class="category-card" data-filter="Snacks & Mixes">Snacks & Mixes</button>
+      <button class="category-card" data-filter="Personal Care & Cleaning">Personal Care & Cleaning</button>
+      <button class="category-card" data-filter="Others / General">Others / General</button>
+    </div>
+  </section>
+
+  <!-- Products Section -->
+  <section id="products" class="products-section">
+    <div class="products-container" id="products-container">
+      <p style="text-align: center; width: 100%;">Loading products...</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 DD Provisions. All Rights Reserved.</p>
+  </footer>
+
+  <!-- Firebase Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js"></script>
+
+  <script>
+    // ========== CONFIGURE YOUR WHATSAPP NUMBER HERE ==========
+    const whatsappNumber = "917386032284";
+
+    // ========== FIREBASE CONFIG - REPLACE WITH YOUR CONFIG ==========
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBjhFMt9Re22zYgIBIifiHVfXzvPK3h2Sc",
+  authDomain: "admin-ddprovisons.firebaseapp.com",
+  databaseURL: "https://admin-ddprovisons-default-rtdb.firebaseio.com",
+  projectId: "admin-ddprovisons",
+  storageBucket: "admin-ddprovisons.firebasestorage.app",
+  messagingSenderId: "527916716799",
+  appId: "1:527916716799:web:84839ab3e0d738fcb4f2ca",
+  measurementId: "G-KJEH721HX6"
+};
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ========== SHOPPING CART STATE ==========
+    let cart = JSON.parse(localStorage.getItem("groceryCart")) || [];
+    let products = [];
+
+    // ========== DOM ELEMENTS ==========
+    const productsContainer = document.getElementById("products-container");
+    const categoryButtons = document.querySelectorAll(".category-card");
+    const searchInput = document.getElementById("search-input");
+    const clearSearch = document.getElementById("clear-search");
+    const cartToggle = document.getElementById("cart-toggle");
+    const cartSidebar = document.getElementById("cart-sidebar");
+    const cartOverlay = document.getElementById("cart-overlay");
+    const cartClose = document.getElementById("cart-close");
+    const cartItemsContainer = document.getElementById("cart-items");
+    const cartBadge = document.getElementById("cart-badge");
+    const cartTotalPrice = document.getElementById("cart-total-price");
+    const checkoutBtn = document.getElementById("checkout-btn");
+    const clearCartBtn = document.getElementById("clear-cart-btn");
+
+    // ========== LOAD PRODUCTS FROM FIREBASE ==========
+    function loadProductsFromFirebase() {
+      db.ref('products').on('value', (snapshot) => {
+        products = [];
+        snapshot.forEach((childSnapshot) => {
+          const product = childSnapshot.val();
+          products.push({
+            id: childSnapshot.key,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+            category: product.category,
+            offer: product.offer || null
+          });
+        });
+        displayProducts(products);
+      }, (error) => {
+        console.error("Error loading products:", error);
+        productsContainer.innerHTML = '<p style="text-align: center; width: 100%; padding: 40px; color: #999;">Unable to load products. Using offline data.</p>';
+        // You can add fallback hardcoded products here if needed
+      });
+    }
+
+    // ========== HELPER: EXTRACT NUMERIC PRICE ==========
+    function extractPrice(priceString) {
+      const numericPrice = parseFloat(priceString.replace(/[^0-9.]/g, ""));
+      return isNaN(numericPrice) ? 0 : numericPrice;
+    }
+
+    // ========== HELPER: FORMAT PRICE ==========
+    function formatPrice(price) {
+      return "₦" + price.toFixed(2);
+    }
+
+    // ========== CART: ANIMATE BUTTON ==========
+    function animateCartButton() {
+      cartToggle.classList.remove("animate");
+      void cartToggle.offsetWidth;
+      cartToggle.classList.add("animate");
+      
+      cartBadge.classList.remove("pulse");
+      void cartBadge.offsetWidth;
+      cartBadge.classList.add("pulse");
+      
+      setTimeout(() => {
+        cartToggle.classList.remove("animate");
+        cartBadge.classList.remove("pulse");
+      }, 600);
+    }
+
+    // ========== CART: ADD PRODUCT ==========
+    function addToCart(product) {
+      const existingItem = cart.find((item) => item.name === product.name);
+      
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        cart.push({
+          ...product,
+          quantity: 1,
+          priceNumeric: extractPrice(product.price)
+        });
+      }
+      
+      saveCart();
+      updateCartUI();
+      animateCartButton();
+      showCartNotification(product.name);
+    }
+
+    // ========== CART: UPDATE QUANTITY ==========
+    function updateQuantity(productName, newQuantity) {
+      if (newQuantity <= 0) {
+        removeFromCart(productName);
+        return;
+      }
+      
+      const item = cart.find((p) => p.name === productName);
+      if (item) {
+        item.quantity = newQuantity;
+        saveCart();
+        updateCartUI();
+      }
+    }
+
+    // ========== CART: REMOVE PRODUCT ==========
+    function removeFromCart(productName) {
+      cart = cart.filter((item) => item.name !== productName);
+      saveCart();
+      updateCartUI();
+    }
+
+    // ========== CART: CLEAR ALL ==========
+    function clearAllCart() {
+      if (confirm("Are you sure you want to clear the entire cart?")) {
+        cart = [];
+        saveCart();
+        updateCartUI();
+        closeCart();
+      }
+    }
+
+    // ========== CART: SAVE TO LOCALSTORAGE ==========
+    function saveCart() {
+      localStorage.setItem("groceryCart", JSON.stringify(cart));
+    }
+
+    // ========== CART: UPDATE UI ==========
+    function updateCartUI() {
+      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+      cartBadge.textContent = totalItems;
+      
+      if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="empty-cart-message">Your cart is empty</p>';
+        checkoutBtn.disabled = true;
+      } else {
+        cartItemsContainer.innerHTML = cart.map((item) => `
+          <div class="cart-item">
+            <div class="cart-item-details">
+              <p class="cart-item-name">${item.name}</p>
+              <p class="cart-item-price">${item.price} × ${item.quantity} = ${formatPrice(item.priceNumeric * item.quantity)}</p>
+              <div class="cart-item-controls">
+                <button class="quantity-btn" onclick="updateQuantity('${item.name.replace(/'/g, "\\'")}', ${item.quantity - 1})">−</button>
+                <span class="quantity-display">${item.quantity}</span>
+                <button class="quantity-btn" onclick="updateQuantity('${item.name.replace(/'/g, "\\'")}', ${item.quantity + 1})">+</button>
+                <button class="remove-item-btn" onclick="removeFromCart('${item.name.replace(/'/g, "\\'")}')">Remove</button>
+              </div>
+            </div>
+          </div>
+        `).join("");
+        checkoutBtn.disabled = false;
+      }
+      
+      const totalPrice = cart.reduce((sum, item) => sum + (item.priceNumeric * item.quantity), 0);
+      cartTotalPrice.textContent = formatPrice(totalPrice);
+    }
+
+    // ========== CART: NOTIFICATION ==========
+    function showCartNotification(productName) {
+      console.log(`✓ ${productName} added to cart!`);
+    }
+
+    // ========== CART: TOGGLE SIDEBAR ==========
+    function toggleCart() {
+      cartSidebar.classList.toggle("active");
+      cartOverlay.classList.toggle("active");
+    }
+
+    // ========== CART: CLOSE SIDEBAR ==========
+    function closeCart() {
+      cartSidebar.classList.remove("active");
+      cartOverlay.classList.remove("active");
+    }
+
+    // ========== CART: CHECKOUT ON WHATSAPP ==========
+    function checkoutOnWhatsApp() {
+      if (cart.length === 0) return;
+      
+      let message = `Hello DD Provisions 👋,\n\nI want to order the following items:\n\n`;
+      
+      cart.forEach((item) => {
+        const subtotal = formatPrice(item.priceNumeric * item.quantity);
+        message += `🛒 *${item.name}*\n   Qty: ${item.quantity} × ${item.price} = ${subtotal}\n\n`;
+      });
+      
+      const totalPrice = cart.reduce((sum, item) => sum + (item.priceNumeric * item.quantity), 0);
+      message += `\n💰 *Total: ${formatPrice(totalPrice)}*\n\nPlease confirm availability and proceed with delivery details.`;
+      
+      const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      window.open(url, "_blank");
+    }
+
+    // ========== SCROLL TO PRODUCTS FUNCTION ==========
+    function scrollToProducts() {
+      setTimeout(() => {
+        productsContainer.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
+    }
+
+    // ========== RENDER PRODUCTS FUNCTION ==========
+    function displayProducts(filteredProducts) {
+      productsContainer.innerHTML = "";
+
+      if (filteredProducts.length === 0) {
+        productsContainer.innerHTML = `<p style="text-align: center; width: 100%; padding: 40px; font-size: 1.2em; color: #666;">No products found.</p>`;
+        return;
+      }
+
+      filteredProducts.forEach((product) => {
+        const productCard = document.createElement("div");
+        productCard.classList.add("product-card");
+
+        productCard.innerHTML = `
+          <div class="image-container">
+            ${product.offer ? `<span class="offer-badge">${product.offer}</span>` : ""}
+            <img src="${product.image}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/200';" />
+          </div>
+          <div class="product-details">
+            <h3>${product.name}</h3>
+            <p class="price">${product.price}</p>
+            <div class="product-btn-container">
+              <button class="add-to-cart-btn" onclick="addToCart({
+                name: '${product.name.replace(/'/g, "\\'")}',
+                price: '${product.price}',
+                image: '${product.image}',
+                category: '${product.category}'
+              })">
+                <i class="ri-shopping-cart-line"></i> Add
+              </button>
+              <button class="whatsapp-btn">
+                <i class="ri-whatsapp-line"></i> Order
+              </button>
+            </div>
+          </div>
+        `;
+
+        const whatsappBtn = productCard.querySelector(".whatsapp-btn");
+        whatsappBtn.addEventListener("click", () => {
+          const message = `Hello DD Provisions 👋,\n\nI want to order:\n🛒 *${product.name}* - ${product.price}`;
+          const url = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+          window.open(url, "_blank");
+        });
+
+        productsContainer.appendChild(productCard);
+      });
+    }
+
+    // ========== FILTER BY CATEGORY ==========
+    categoryButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelector(".category-card.active").classList.remove("active");
+        btn.classList.add("active");
+
+        searchInput.value = "";
+        clearSearch.style.display = "none";
+
+        const category = btn.getAttribute("data-filter");
+
+        if (category === "All") {
+          displayProducts(products);
+        } else if (category === "Offers") {
+          const filtered = products.filter((p) => p.offer);
+          displayProducts(filtered);
+        } else {
+          const filtered = products.filter((p) => p.category === category);
+          displayProducts(filtered);
+        }
+
+        scrollToProducts();
+      });
+    });
+
+    // ========== SEARCH FUNCTIONALITY ==========
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.toLowerCase().trim();
+      
+      if (query.length > 0) {
+        clearSearch.style.display = "block";
+      } else {
+        clearSearch.style.display = "none";
+      }
+
+      const filtered = products.filter((p) =>
+        p.name.toLowerCase().includes(query)
+      );
+      displayProducts(filtered);
+
+      if (query.length > 0) {
+        scrollToProducts();
+      }
+    });
+
+    // ========== CLEAR SEARCH ==========
+    clearSearch.addEventListener("click", () => {
+      searchInput.value = "";
+      clearSearch.style.display = "none";
+      displayProducts(products);
+      
+      document.querySelector(".category-card.active").classList.remove("active");
+      document.querySelector('.category-card[data-filter="All"]').classList.add("active");
+    });
+
+    // ========== CART: EVENT LISTENERS ==========
+    cartToggle.addEventListener("click", toggleCart);
+    cartClose.addEventListener("click", closeCart);
+    cartOverlay.addEventListener("click", closeCart);
+    checkoutBtn.addEventListener("click", checkoutOnWhatsApp);
+    clearCartBtn.addEventListener("click", clearAllCart);
+
+    // ========== INITIAL LOAD ==========
+    loadProductsFromFirebase();
+    updateCartUI();
+  </script>
+</body>
+</html>
